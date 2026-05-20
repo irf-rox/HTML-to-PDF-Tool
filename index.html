@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTML → PDF · Quadrasystems</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Share+Tech+Mono&family=Orbitron:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --qp: #A32DCD;
+  --qo: #FF5805;
+  --qp2: rgba(163,45,205,0.18);
+  --qo2: rgba(255,88,5,0.14);
+  --qp-glow: rgba(163,45,205,0.5);
+  --qo-glow: rgba(255,88,5,0.45);
+
+  --bg:      #030305;
+  --s0:      #07070d;
+  --s1:      #0b0b14;
+  --s2:      #0f0f1a;
+  --border:  rgba(163,45,205,0.22);
+  --border2: rgba(255,255,255,0.05);
+
+  --txt:  #e8e6f4;
+  --txt2: #7070a0;
+  --txt3: #2e2e48;
+  --ok:   #00e87a;
+  --err:  #ff3a5a;
+  --warn: #ffbb00;
+
+  --orbitron:  'Orbitron', sans-serif;
+  --grotesk:   'Space Grotesk', sans-serif;
+  --mono:      'Share Tech Mono', monospace;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+
+body {
+  background: var(--bg);
+  color: var(--txt);
+  font-family: var(--grotesk);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ═══ ANIMATED BACKGROUND ═══ */
+.bg-canvas {
+  position: fixed; inset: 0; z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Fine hex-ish grid */
+.bg-canvas::before {
+  content:'';
+  position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(163,45,205,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(163,45,205,.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Corner accent lines */
+.bg-canvas::after {
+  content:'';
+  position:absolute; inset:0;
+  background:
+    linear-gradient(135deg, rgba(163,45,205,.12) 0%, transparent 40%),
+    linear-gradient(315deg, rgba(255,88,5,.08) 0%, transparent 40%);
+}
+
+/* Pulsing orbs */
+.orb {
+  position:absolute;
+  border-radius:50%;
+  filter: blur(80px);
+  animation: orbFloat 10s ease-in-out infinite;
+}
+.orb1 { width:500px;height:500px; background:rgba(163,45,205,.07); top:-120px; left:-100px; animation-delay:0s; }
+.orb2 { width:400px;height:400px; background:rgba(255,88,5,.05); bottom:-100px; right:-80px; animation-delay:5s; }
+.orb3 { width:300px;height:300px; background:rgba(163,45,205,.04); top:40%; left:60%; animation-delay:2.5s; }
+
+@keyframes orbFloat {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%      { transform: translate(30px,-20px) scale(1.05); }
+  66%      { transform: translate(-20px,30px) scale(0.95); }
+}
+
+/* Scan lines */
+.scanlines {
+  position:absolute; inset:0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,.12) 2px,
+    rgba(0,0,0,.12) 4px
+  );
+  pointer-events:none;
+}
+
+/* ═══ SHELL ═══ */
+.shell {
+  position:relative; z-index:1;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 48px 28px 80px;
+}
+
+/* ═══ HEADER ═══ */
+.header { margin-bottom:44px; }
+
+.hud-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.hud-tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--txt3);
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.hud-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 8px var(--ok);
+  animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.hud-sep { flex: 1; height: 1px; background: linear-gradient(90deg, var(--border), transparent); }
+
+.system-id {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--txt3);
+  letter-spacing: 1.5px;
+}
+
+/* Main title */
+.title-block { position: relative; margin-bottom: 20px; }
+
+.title-eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--qp);
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.title-eyebrow::before {
+  content: '// ';
+  opacity: 0.5;
+}
+
+.main-title {
+  font-family: var(--orbitron);
+  font-size: clamp(36px, 6vw, 64px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -1px;
+  display: flex; align-items: center; gap: 16px;
+  flex-wrap: wrap;
+}
+
+.t-html {
+  color: var(--txt);
+  text-shadow: 0 0 40px rgba(255,255,255,.1);
+  position: relative;
+}
+.t-html::after {
+  content: '';
+  position: absolute;
+  bottom: -4px; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--qp), transparent);
+}
+
+.t-arrow {
+  color: var(--qp);
+  font-size: 0.7em;
+  text-shadow: 0 0 20px var(--qp-glow), 0 0 40px var(--qp-glow);
+  animation: arrowGlow 2s ease-in-out infinite;
+}
+@keyframes arrowGlow {
+  0%,100%{ text-shadow: 0 0 20px var(--qp-glow), 0 0 40px var(--qp-glow); }
+  50%    { text-shadow: 0 0 30px var(--qo-glow), 0 0 60px var(--qo-glow); }
+}
+
+.t-pdf {
+  background: linear-gradient(135deg, var(--qp) 0%, #d040f0 40%, var(--qo) 100%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 20px rgba(163,45,205,.4));
+}
+
+.title-sub {
+  font-family: var(--grotesk);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--txt2);
+  max-width: 520px;
+  line-height: 1.7;
+  margin-top: 16px;
+  padding-left: 2px;
+}
+
+/* Glitch effect on hover */
+.main-title:hover .t-html {
+  animation: glitch 0.3s steps(2,jump-none) 1;
+}
+@keyframes glitch {
+  0%  { text-shadow: 2px 0 var(--qp), -2px 0 var(--qo); }
+  25% { text-shadow: -2px 0 var(--qp),  2px 0 var(--qo); clip-path: inset(20% 0 60% 0); }
+  50% { text-shadow: 2px 0 var(--qo),  -2px 0 var(--qp); clip-path: inset(60% 0 10% 0); }
+  75% { text-shadow: -2px 0 var(--qo),  2px 0 var(--qp); clip-path: inset(0% 0 80% 0); }
+  100%{ text-shadow: none; clip-path: none; }
+}
+
+/* ═══ STAT STRIP ═══ */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+}
+
+.stat-cell {
+  background: var(--s1);
+  padding: 12px 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+
+.stat-icon {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  background: var(--qp2);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--qp);
+  flex-shrink: 0;
+  font-size: 13px;
+}
+
+.stat-content {}
+.stat-val {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--txt);
+  line-height: 1;
+}
+.stat-key {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--txt3);
+  letter-spacing: 1px;
+  margin-top: 2px;
+}
+
+/* ═══ MODE TABS ═══ */
+.mode-row {
+  display: flex; gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mode-tab {
+  flex: 1;
+  padding: 0;
+  background: var(--s1);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all .2s;
+  overflow: hidden;
+  position: relative;
+}
+
+.mode-tab-inner {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px;
+  pointer-events: none;
+}
+
+.mode-tab-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--txt3);
+  letter-spacing: 1px;
+  width: 22px;
+  flex-shrink: 0;
+}
+
+.mode-tab-icon {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  background: var(--s2);
+  border: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--txt2);
+  flex-shrink: 0;
+  transition: all .2s;
+}
+
+.mode-tab-text { text-align: left; }
+.mode-tab-name {
+  font-family: var(--grotesk);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--txt2);
+  display: block;
+  transition: color .2s;
+}
+.mode-tab-desc {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--txt3);
+  display: block;
+  margin-top: 2px;
+}
+
+/* active indicator bar */
+.mode-tab::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--qp), var(--qo));
+  transform: scaleX(0);
+  transition: transform .25s;
+}
+
+.mode-tab:hover { border-color: var(--border); }
+.mode-tab:hover .mode-tab-name { color: var(--txt); }
+.mode-tab:hover .mode-tab-icon { border-color: var(--border); color: var(--txt); }
+
+.mode-tab.active {
+  background: linear-gradient(180deg, rgba(163,45,205,.1), rgba(163,45,205,.04));
+  border-color: var(--border);
+  box-shadow: 0 0 24px rgba(163,45,205,.1);
+}
+.mode-tab.active::after { transform: scaleX(1); }
+.mode-tab.active .mode-tab-name { color: var(--txt); }
+.mode-tab.active .mode-tab-num { color: var(--qp); }
+.mode-tab.active .mode-tab-icon {
+  background: var(--qp2);
+  border-color: var(--border);
+  color: var(--qp);
+  box-shadow: 0 0 12px rgba(163,45,205,.25);
+}
+
+/* ═══ INPUT PANEL ═══ */
+.input-panel {
+  display: none;
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 14px;
+  overflow: hidden;
+  position: relative;
+  transition: box-shadow .2s;
+}
+.input-panel.active {
+  display: block;
+  animation: panelIn .2s cubic-bezier(.4,0,.2,1) both;
+}
+@keyframes panelIn {
+  from { opacity:0; transform:translateY(8px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.input-panel::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:1px;
+  background: linear-gradient(90deg, transparent 5%, var(--qp) 40%, var(--qo) 60%, transparent 95%);
+  opacity:.6;
+}
+.input-panel:focus-within {
+  box-shadow: 0 0 0 1px rgba(163,45,205,.2), 0 4px 30px rgba(163,45,205,.08);
+}
+
+/* Panel header */
+.panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--border2);
+  background: rgba(0,0,0,.3);
+}
+
+.panel-head-left {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--txt2);
+  text-transform: uppercase;
+}
+
+.ph-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--qp);
+  box-shadow: 0 0 8px var(--qp);
+  animation: blink 3s ease-in-out infinite;
+}
+
+.panel-head-right {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--txt3);
+  letter-spacing: 1px;
+}
+
+/* ═══ DROP ZONE ═══ */
+.drop-zone {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 18px;
+  min-height: 230px;
+  padding: 40px 32px;
+  cursor: pointer;
+  transition: background .2s;
+  position: relative;
+}
+.drop-zone:hover, .drop-zone.dragover { background: rgba(163,45,205,.03); }
+
+.drop-zone input[type=file] {
+  position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%;
+}
+
+/* Hexagonal upload icon */
+.hex-wrap {
+  position: relative;
+  width: 80px; height: 80px;
+  display: flex; align-items: center; justify-content: center;
+}
+.hex-ring {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(163,45,205,.35);
+  animation: spinRing 15s linear infinite;
+}
+.hex-ring-2 {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,88,5,.2);
+  animation: spinRing 10s linear infinite reverse;
+}
+@keyframes spinRing { to { transform: rotate(360deg); } }
+
+.hex-core {
+  width: 54px; height: 54px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(163,45,205,.2), rgba(163,45,205,.06));
+  border: 1px solid rgba(163,45,205,.4);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--qp);
+  transition: all .3s;
+  box-shadow: 0 0 20px rgba(163,45,205,.15);
+}
+
+.drop-zone:hover .hex-core,
+.drop-zone.dragover .hex-core {
+  background: linear-gradient(135deg, rgba(163,45,205,.35), rgba(163,45,205,.15));
+  border-color: rgba(163,45,205,.7);
+  box-shadow: 0 0 30px rgba(163,45,205,.35);
+  transform: scale(1.1);
+}
+
+.drop-label {
+  font-family: var(--orbitron);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--txt);
+  letter-spacing: .5px;
+  text-align: center;
+}
+
+.drop-sub {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--txt2);
+  text-align: center;
+}
+
+.fmt-tags { display: flex; gap: 8px; }
+.fmt-tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: rgba(255,88,5,.85);
+  background: rgba(255,88,5,.08);
+  border: 1px solid rgba(255,88,5,.2);
+  border-radius: 5px;
+  padding: 3px 10px;
+  letter-spacing: 1px;
+}
+
+/* ═══ FILE LOADED ═══ */
+.file-loaded {
+  display: none;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 20px;
+}
+.file-loaded.show { display: flex; }
+
+.fl-icon {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(0,232,122,.12), rgba(0,232,122,.04));
+  border: 1px solid rgba(0,232,122,.25);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ok);
+  flex-shrink: 0;
+}
+
+.fl-info { flex:1; min-width:0; }
+.fl-name {
+  font-family: var(--mono);
+  font-size: 13px; color: var(--txt);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.fl-meta {
+  font-family: var(--mono);
+  font-size: 10px; color: var(--txt3); margin-top: 3px;
+  letter-spacing: .5px;
+}
+
+.rm-btn {
+  background: transparent;
+  border: 1px solid rgba(255,58,90,.25);
+  border-radius: 6px;
+  color: var(--err);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.rm-btn:hover { background: rgba(255,58,90,.1); border-color: var(--err); }
+
+/* ═══ PASTE AREA ═══ */
+.paste-body { padding: 18px 20px 20px; }
+
+.paste-lbl {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--txt2);
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.paste-lbl-dot {
+  width:5px; height:5px; border-radius:50%;
+  background:var(--qo); box-shadow:0 0 6px var(--qo);
+}
+
+.paste-input {
+  width:100%; min-height:270px; resize:vertical;
+  background: #04040a;
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  color: var(--txt);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.9;
+  padding: 14px 16px;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+  caret-color: var(--qp);
+}
+.paste-input:focus {
+  border-color: rgba(163,45,205,.4);
+  box-shadow: 0 0 0 1px rgba(163,45,205,.1), 0 4px 20px rgba(163,45,205,.05);
+}
+.paste-input::placeholder { color: var(--txt3); }
+
+.paste-hint {
+  margin-top: 9px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--txt3);
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.paste-hint-icon { color: var(--warn); margin-top:1px; flex-shrink:0; }
+
+/* ═══ FNAME ROW ═══ */
+.fname-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 18px;
+  border-top: 1px solid var(--border2);
+  background: rgba(0,0,0,.2);
+}
+
+.fname-lbl {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt3);
+  white-space: nowrap;
+}
+
+.fname-input {
+  flex:1;
+  background: var(--s2);
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  color: var(--txt);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 6px 12px;
+  outline: none;
+  transition: border-color .15s;
+}
+.fname-input:focus { border-color: rgba(163,45,205,.4); }
+.fname-input::placeholder { color: var(--txt3); }
+
+/* ═══ CTA BUTTON ═══ */
+.cta-wrap { position: relative; margin-bottom: 16px; }
+
+.export-btn {
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform .2s cubic-bezier(.34,1.4,.64,1);
+}
+
+.export-btn:hover { transform: translateY(-3px); }
+.export-btn:active { transform: scale(.99); }
+.export-btn:disabled { opacity:.4; cursor:not-allowed; transform:none; }
+
+.btn-bg {
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, #8820b8 0%, var(--qp) 40%, #d040f0 70%, var(--qo) 100%);
+  transition: opacity .3s;
+}
+.btn-bg-hover {
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, var(--qo) 0%, #d040f0 50%, var(--qp) 100%);
+  opacity: 0;
+  transition: opacity .3s;
+}
+.export-btn:hover .btn-bg-hover { opacity: 1; }
+
+/* shimmer sweep */
+.btn-shimmer {
+  position: absolute; inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,.15) 50%, transparent 60%);
+  transform: translateX(-100%);
+  animation: shimmer 3s ease-in-out infinite;
+}
+@keyframes shimmer { to { transform: translateX(200%); } }
+
+.btn-inner {
+  position: relative;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 24px;
+  gap: 16px;
+}
+
+.btn-left { display:flex; align-items:center; gap:14px; }
+
+.btn-glyph {
+  width: 42px; height: 42px;
+  border-radius: 10px;
+  background: rgba(0,0,0,.25);
+  border: 1px solid rgba(255,255,255,.15);
+  display: flex; align-items:center; justify-content:center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.btn-text { text-align: left; }
+.btn-primary {
+  font-family: var(--orbitron);
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 1px;
+  display: block;
+  line-height: 1;
+}
+.btn-secondary {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: rgba(255,255,255,.6);
+  display: block;
+  margin-top: 5px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.btn-right {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: rgba(255,255,255,.5);
+  display: flex; align-items:center; gap:6px;
+}
+.btn-arrow {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.15);
+  display: flex; align-items:center; justify-content:center;
+  color: rgba(255,255,255,.8);
+  transition: transform .2s;
+}
+.export-btn:hover .btn-arrow { transform: translateX(3px); }
+
+
+/* ═══ FOOTER ═══ */
+.footer {
+  margin-top: 36px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border2);
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; flex-wrap:wrap;
+}
+
+.footer-brand {
+  display:flex; align-items:center; gap:10px;
+}
+
+.footer-q {
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--qp), var(--qo));
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+
+.footer-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--txt3);
+  text-transform: uppercase;
+}
+
+.footer-note {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--txt3);
+  letter-spacing: .5px;
+}
+
+/* ═══ ENTRY ANIMATIONS ═══ */
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(16px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.header        { animation: fadeUp .5s ease both 0s; }
+.stat-strip    { animation: fadeUp .5s ease both .06s; }
+.mode-row      { animation: fadeUp .5s ease both .12s; }
+.input-panel   { animation: fadeUp .5s ease both .16s; }
+.cta-wrap      { animation: fadeUp .5s ease both .22s; }
+.footer        { animation: fadeUp .5s ease both .28s; }
+</style>
+</head>
+<body>
+
+<!-- Background layers -->
+<div class="bg-canvas">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+  <div class="scanlines"></div>
+</div>
+
+<div class="shell">
+
+  <!-- ── Header ── -->
+  <div class="header">
+    <div class="hud-bar">
+      <span class="hud-tag"><div class="hud-dot"></div>SYSTEM ONLINE</span>
+      <div class="hud-sep"></div>
+      <span class="system-id">QDR-PDF-EXPORTER / v3.0</span>
+    </div>
+
+    <div class="title-block">
+      <div class="title-eyebrow">render engine</div>
+      <div class="main-title">
+        <span class="t-html">HTML</span>
+        <span class="t-arrow">⟶</span>
+        <span class="t-pdf">PDF</span>
+      </div>
+      <p class="title-sub">
+        Drop an HTML file or paste raw markup — rendered at 2× resolution into a single-page PDF with zero breaks.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── Stat strip ── -->
+  <div class="stat-strip">
+    <div class="stat-cell">
+      <div class="stat-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <div class="stat-content">
+        <div class="stat-val">~1.5s</div>
+        <div class="stat-key">RENDER TIME</div>
+      </div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      </div>
+      <div class="stat-content">
+        <div class="stat-val">2× RES</div>
+        <div class="stat-key">SCALE FACTOR</div>
+      </div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div class="stat-content">
+        <div class="stat-val">LOCAL</div>
+        <div class="stat-key">NO UPLOAD</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Mode tabs ── -->
+  <div class="mode-row">
+    <button class="mode-tab active" id="tab-file" onclick="switchMode('file')">
+      <div class="mode-tab-inner">
+        <span class="mode-tab-num">01</span>
+        <div class="mode-tab-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <div class="mode-tab-text">
+          <span class="mode-tab-name">Upload File</span>
+          <span class="mode-tab-desc">.html / .htm</span>
+        </div>
+      </div>
+    </button>
+    <button class="mode-tab" id="tab-paste" onclick="switchMode('paste')">
+      <div class="mode-tab-inner">
+        <span class="mode-tab-num">02</span>
+        <div class="mode-tab-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+        </div>
+        <div class="mode-tab-text">
+          <span class="mode-tab-name">Paste HTML</span>
+          <span class="mode-tab-desc">raw markup</span>
+        </div>
+      </div>
+    </button>
+  </div>
+
+  <!-- ── File panel ── -->
+  <div class="input-panel active" id="panel-file">
+    <div class="panel-head">
+      <div class="panel-head-left">
+        <div class="ph-dot"></div>
+        INPUT_STREAM.FILE
+      </div>
+      <div class="panel-head-right">MODE: UPLOAD</div>
+    </div>
+
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept=".html,.htm" onchange="onFileSelect(this.files[0])">
+      <div class="hex-wrap">
+        <div class="hex-ring"></div>
+        <div class="hex-ring-2"></div>
+        <div class="hex-core">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+          </svg>
+        </div>
+      </div>
+      <div>
+        <div class="drop-label">DROP FILE TO INITIALISE</div>
+        <div class="drop-sub" style="margin-top:6px">or click to browse filesystem</div>
+      </div>
+      <div class="fmt-tags">
+        <span class="fmt-tag">.HTML</span>
+        <span class="fmt-tag">.HTM</span>
+      </div>
+    </div>
+
+    <div class="file-loaded" id="file-loaded">
+      <div class="fl-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/>
+        </svg>
+      </div>
+      <div class="fl-info">
+        <div class="fl-name" id="file-loaded-name">—</div>
+        <div class="fl-meta" id="file-loaded-meta">—</div>
+      </div>
+      <button class="rm-btn" onclick="clearFile()">REMOVE</button>
+    </div>
+
+    <div class="fname-row">
+      <span class="fname-lbl">OUTPUT</span>
+      <input class="fname-input" id="fname-file" type="text" placeholder="output.pdf" value="output.pdf">
+    </div>
+  </div>
+
+  <!-- ── Paste panel ── -->
+  <div class="input-panel" id="panel-paste">
+    <div class="panel-head">
+      <div class="panel-head-left">
+        <div class="ph-dot" style="background:var(--qo);box-shadow:0 0 8px var(--qo);"></div>
+        INPUT_STREAM.PASTE
+      </div>
+      <div class="panel-head-right">MODE: PASTE</div>
+    </div>
+    <div class="paste-body">
+      <div class="paste-lbl">
+        <div class="paste-lbl-dot"></div>
+        HTML MARKUP
+      </div>
+      <textarea class="paste-input" id="paste-input" placeholder="<!DOCTYPE html>
+<html>
+  <head>...</head>
+  <body>...</body>
+</html>"></textarea>
+      <div class="paste-hint">
+        <span class="paste-hint-icon">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </span>
+        Inline styles work best. External assets load only if browser can access them.
+      </div>
+    </div>
+    <div class="fname-row">
+      <span class="fname-lbl">OUTPUT</span>
+      <input class="fname-input" id="fname-paste" type="text" placeholder="output.pdf" value="output.pdf">
+    </div>
+  </div>
+
+  <!-- ── CTA ── -->
+  <div class="cta-wrap">
+    <button class="export-btn" id="export-btn" onclick="exportPDF()">
+      <div class="btn-bg"></div>
+      <div class="btn-bg-hover"></div>
+      <div class="btn-shimmer"></div>
+      <div class="btn-inner">
+        <div class="btn-left">
+          <div class="btn-glyph">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </div>
+          <div class="btn-text">
+            <span class="btn-primary">RENDER &amp; DOWNLOAD</span>
+            <span class="btn-secondary">SINGLE PAGE · 2× RESOLUTION · PDF</span>
+          </div>
+        </div>
+        <div class="btn-right">
+          <span>EXECUTE</span>
+          <div class="btn-arrow">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+          </div>
+        </div>
+      </div>
+    </button>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-brand">
+      <div class="footer-q">
+        <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+          <path d="M2 4h6a3 3 0 0 1 0 6H2V4z" fill="white"/>
+          <path d="M7 6h1a1 1 0 0 1 0 2H7V6z" fill="rgba(0,0,0,0.35)"/>
+        </svg>
+      </div>
+      <span class="footer-name">Quadrasystems.net India Pvt. Ltd.</span>
+    </div>
+    <span class="footer-note">all processing is local · no data leaves your browser</span>
+  </div>
+
+</div>
+
+<script>
+let mode       = 'file';
+let loadedFile = null;
+let loadedHTML = '';
+
+function switchMode(m) {
+  mode = m;
+  document.getElementById('tab-file').classList.toggle('active', m === 'file');
+  document.getElementById('tab-paste').classList.toggle('active', m === 'paste');
+  document.getElementById('panel-file').classList.toggle('active', m === 'file');
+  document.getElementById('panel-paste').classList.toggle('active', m === 'paste');
+}
+
+
+function resetBtn() {
+  document.getElementById('export-btn').disabled = false;
+}
+
+/* ── File handling ── */
+const dropZone = document.getElementById('drop-zone');
+
+dropZone.addEventListener('dragover', function(e) {
+  e.preventDefault();
+  dropZone.classList.add('dragover');
+});
+dropZone.addEventListener('dragleave', function() {
+  dropZone.classList.remove('dragover');
+});
+dropZone.addEventListener('drop', function(e) {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  var f = e.dataTransfer.files[0];
+  if (f) onFileSelect(f);
+});
+
+function onFileSelect(file) {
+  if (!file) return;
+  if (!file.name.match(/\.html?$/i)) {
+    alert('Only .html / .htm files are supported.');
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    loadedHTML = e.target.result;
+    loadedFile = file;
+    document.getElementById('drop-zone').style.display = 'none';
+    document.getElementById('file-loaded').classList.add('show');
+    document.getElementById('file-loaded-name').textContent = file.name;
+    document.getElementById('file-loaded-meta').textContent =
+      (file.size / 1024).toFixed(1) + ' KB · HTML DOCUMENT';
+    var base = file.name.replace(/\.html?$/i, '');
+    document.getElementById('fname-file').value = base + '.pdf';
+  };
+  reader.readAsText(file);
+}
+
+function clearFile() {
+  loadedFile = null; loadedHTML = '';
+  document.getElementById('drop-zone').style.display = '';
+  document.getElementById('file-loaded').classList.remove('show');
+  document.getElementById('file-input').value = '';
+  document.getElementById('fname-file').value = 'output.pdf';
+}
+
+/* ── PostMessage: receive PDF bytes from render tab and download ── */
+window.addEventListener('message', function(e) {
+  if (!e.data || e.data.type !== 'pdfReady') return;
+  if (e.data.bytes) {
+    var blob = new Blob([e.data.bytes], { type: 'application/pdf' });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href     = url;
+    a.download = e.data.fname;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
+  }
+  resetBtn();
+});
+
+/* ── Capture script injected into render tab ── */
+var CDN_SCRIPTS =
+  '<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>'
++ '<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>';
+
+function captureScript(fname, waitMs) {
+  if (!waitMs) waitMs = 800;
+  return '<script>(function(){'
+       + 'var fname=' + JSON.stringify(fname) + ';'
+       + 'function t(m){document.title="PDF: "+m;}'
+       + 'function sendPDF(pdf,label){'
+       +   't("Sending…");'
+       +   'var sent=false;'
+       +   'if(window.opener&&!window.opener.closed){'
+       +     'try{'
+       +       'var bytes=pdf.output("arraybuffer");'
+       +       'window.opener.postMessage({type:"pdfReady",bytes:bytes,fname:fname},"*");'
+       +       'sent=true;'
+       +     '}catch(e){}'
+       +   '}'
+       +   'if(!sent){pdf.save(fname);}'
+       +   't(label+" — closing tab…");'
+       +   'setTimeout(function(){window.close();},3000);'
+       + '}'
+       + 'function runCapture(){'
+       +   't("Capturing…");'
+       +   'var b=document.body,d=document.documentElement;'
+       +   'var W=Math.max(d.clientWidth||0,window.innerWidth||0)||1200;'
+       +   'var H=Math.max(b.scrollHeight,b.offsetHeight,d.scrollHeight,d.offsetHeight);'
+       +   'var meta=document.querySelector("meta[name=viewport]");'
+       +   'if(!meta){meta=document.createElement("meta");meta.name="viewport";document.head.appendChild(meta);}'
+       +   'meta.content="width="+W+",initial-scale=1";'
+       +   'window.scrollTo(0,0);'
+       +   'html2canvas(b,{'
+       +     'scale:2,useCORS:true,allowTaint:true,backgroundColor:"#ffffff",'
+       +     'scrollX:0,scrollY:0,windowWidth:W,windowHeight:H,width:W,height:H,logging:false,'
+       +     'ignoreElements:function(el){'
+       +       'var s=window.getComputedStyle(el);'
+       +       'return s.position==="fixed"||s.position==="sticky";'
+       +     '}'
+       +   '}).then(function(canvas){'
+       +     't("Building PDF…");'
+       +     'var iW=canvas.width,iH=canvas.height;'
+       +     'var pdf=new window.jspdf.jsPDF({orientation:iW>iH?"l":"p",unit:"px",format:[iW,iH],hotfixes:["px_scaling"]});'
+       +     'var imgData;'
+       +     'try{imgData=canvas.toDataURL("image/jpeg",0.95);}'
+       +     'catch(se){'
+       +       't("Retrying without cross-origin images…");'
+       +       'html2canvas(b,{'
+       +         'scale:2,useCORS:false,allowTaint:false,backgroundColor:"#ffffff",'
+       +         'scrollX:0,scrollY:0,windowWidth:W,windowHeight:H,width:W,height:H,logging:false,'
+       +         'ignoreElements:function(el){'
+       +           'var s=window.getComputedStyle(el);'
+       +           'return el.tagName==="IMG"||'
+       +                  '(s.backgroundImage!=="none"&&s.position!=="static")||'
+       +                  's.position==="fixed"||s.position==="sticky";'
+       +         '}'
+       +       '}).then(function(c2){'
+       +         'var d2=c2.toDataURL("image/jpeg",0.95);'
+       +         'var iW2=c2.width,iH2=c2.height;'
+       +         'var pdf2=new window.jspdf.jsPDF({orientation:iW2>iH2?"l":"p",unit:"px",format:[iW2,iH2],hotfixes:["px_scaling"]});'
+       +         'pdf2.addImage(d2,"JPEG",0,0,iW2,iH2,"","FAST");'
+       +         'sendPDF(pdf2,"Done (images skipped)");'
+       +       '}).catch(function(e2){t("Error: "+e2.message);});'
+       +       'return;'
+       +     '}'
+       +     'pdf.addImage(imgData,"JPEG",0,0,iW,iH,"","FAST");'
+       +     'sendPDF(pdf,"Done ✓");'
+       +   '}).catch(function(e){t("Error: "+e.message);});'
+       + '}'
+       + 'function waitForLibs(cb,n){'
+       +   'if(typeof html2canvas!=="undefined"&&typeof window.jspdf!=="undefined"){cb();return;}'
+       +   'if(n<=0){t("Error: libraries failed to load — check internet connection");return;}'
+       +   'setTimeout(function(){waitForLibs(cb,n-1);},300);'
+       + '}'
+       + 'window.addEventListener("load",function(){'
+       +   't("Preparing…");'
+       +   'setTimeout(function(){waitForLibs(runCapture,40);},' + waitMs + ');'
+       + '});'
+       + '})();<\/script>';
+}
+
+function injectAndOpen(html, fname, baseURL) {
+  if (baseURL) {
+    var baseTag = '<base href="' + baseURL + '">';
+    if (/<head[^>]*>/i.test(html)) {
+      html = html.replace(/<head([^>]*)>/i, function(m) { return m + baseTag; });
+    } else {
+      html = '<head>' + baseTag + '</head>' + html;
+    }
+  }
+
+  /* Inject CDN scripts into <head> so they load in parallel with page content */
+  if (/<head[^>]*>/i.test(html)) {
+    html = html.replace(/(<head[^>]*>)/i, '$1' + CDN_SCRIPTS);
+  } else {
+    html = '<head>' + CDN_SCRIPTS + '</head>' + html;
+  }
+
+  var waitMs = baseURL ? 2000 : 800;
+  var script = captureScript(fname, waitMs);
+  var lo = html.toLowerCase();
+
+  if (lo.indexOf('</body>') !== -1) {
+    html = html.replace(/<\/body>/i, script + '</body>');
+  } else if (lo.indexOf('</html>') !== -1) {
+    html = html.replace(/<\/html>/i, script + '</html>');
+  } else {
+    html = html + script;
+  }
+
+  var blob = new Blob([html], { type: 'text/html' });
+  var url  = URL.createObjectURL(blob);
+  var win  = window.open(url, '_blank');
+  if (!win) {
+    alert('Pop-up blocked — please allow pop-ups for this page and try again.');
+    resetBtn();
+    return;
+  }
+  setTimeout(function() { URL.revokeObjectURL(url); }, 180000);
+}
+
+/* ── Export ── */
+function exportPDF() {
+  var btn  = document.getElementById('export-btn');
+  var html = mode === 'file'
+    ? loadedHTML
+    : document.getElementById('paste-input').value.trim();
+
+  if (!html) {
+    alert(mode === 'file' ? 'Load an HTML file first.' : 'Paste HTML markup first.');
+    return;
+  }
+
+  var fname = mode === 'file'
+    ? document.getElementById('fname-file').value.trim()
+    : document.getElementById('fname-paste').value.trim();
+
+  if (!fname) fname = 'output';
+  if (!fname.toLowerCase().endsWith('.pdf')) fname += '.pdf';
+
+  btn.disabled = true;
+  injectAndOpen(html, fname);
+
+  setTimeout(function() { if (btn.disabled) resetBtn(); }, 30000);
+}
+
+</script>
+</body>
+</html>
